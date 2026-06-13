@@ -1,0 +1,9 @@
+[package]
+name = "aur_tester"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+tokio = { version = "1.52.3", features = ["full"] }
+bollard = "*"
+futures-util = "0.3.32"
