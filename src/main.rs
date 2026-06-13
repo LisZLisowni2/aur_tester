@@ -65,49 +65,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error + 'static>> {
         .await
         .unwrap();
 
-    #[cfg(not(windows))]
-    {
-        let bollard::container::AttachContainerResults {
-            mut output,
-            mut input,
-        } = docker
-            .attach_container(
-                &id,
-                Some(
-                    bollard::query_parameters::AttachContainerOptionsBuilder::default()
-                        .stdout(true)
-                        .stderr(true)
-                        .stdin(true)
-                        .stream(true)
-                        .build(),
-                ),
-            )
-            .await?;
-
-        // pipe stdin into the docker attach stream input
-        spawn(async move {
-            #[allow(clippy::unbuffered_bytes)]
-            let mut stdin = async_stdin().bytes();
-            loop {
-                if let Some(Ok(byte)) = stdin.next() {
-                    input.write_all(&[byte]).await.ok();
-                } else {
-                    sleep(Duration::from_nanos(10)).await;
-                }
-            }
-        });
-
-        // set stdout in raw mode so we can do tty stuff
-        let stdout = stdout();
-        let mut stdout = stdout.lock().into_raw_mode()?;
-
-        // pipe docker attach output into stdout
-        while let Some(Ok(output)) = output.next().await {
-            stdout.write_all(output.into_bytes().as_ref())?;
-            stdout.flush()?;
-        }
-    }
-
     docker
         .remove_container(
             &id,
