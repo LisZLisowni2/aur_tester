@@ -3,17 +3,8 @@ use bollard::models::ContainerCreateBody;
 use bollard::Docker;
 
 use futures_util::{StreamExt, TryStreamExt};
-use std::io::{stdout, Read, Write};
-use std::time::Duration;
 use bollard::container::LogOutput;
 use bollard::exec::{CreateExecOptions, StartExecResults};
-#[cfg(not(windows))]
-use termion::async_stdin;
-#[cfg(not(windows))]
-use termion::raw::IntoRawMode;
-use tokio::io::AsyncWriteExt;
-use tokio::task::spawn;
-use tokio::time::sleep;
 
 const IMAGE: &str = "archlinux:latest";
 
@@ -40,10 +31,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error + 'static>> {
     let archlinux_config = ContainerCreateBody {
         image: Some(String::from(IMAGE)),
         tty: Some(true),
-        attach_stdin: Some(true),
         attach_stdout: Some(true),
         attach_stderr: Some(true),
-        open_stdin: Some(true),
         ..Default::default()
     };
 
@@ -67,7 +56,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error + 'static>> {
 
     println!("[+] Container started.");
 
-    run_command_in_container(&docker, &id, vec!["echo", "test"]).await?;
+    run_command_in_container(&docker, &id, vec!["pacman", "-Syu", "--noconfirm"]).await?;
+    run_command_in_container(&docker, &id, vec!["pacman", "-S", ""]).await?;
 
     docker
         .remove_container(
