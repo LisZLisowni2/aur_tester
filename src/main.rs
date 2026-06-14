@@ -59,8 +59,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error + 'static>> {
 
     println!("[+] Container started.");
 
-    run_command_in_container(&docker, &id, vec!["pacman", "-Syu", "--noconfirm"]).await?;
-    run_command_in_container(&docker, &id, vec!["pacman", "-S", "--noconfirm", "git", "base-devel"]).await?;
+    run_command_in_container(&docker, &id, "root", "/", vec!["pacman", "-Syu", "--noconfirm"]).await?;
+    run_command_in_container(&docker, &id, "root", "/",vec!["pacman", "-S", "--noconfirm", "git", "base-devel"]).await?;
+    run_command_in_container(&docker, &id, "root", "/", vec!["useradd", "-mG", "wheel", "builder"]).await?;
+    run_command_in_container(&docker, &id, "root", "/",vec!["echo \"builder ALL=(ALL:ALL) NOPASSWD: ALL\" >> /etc/sudoers"]).await?;
+    run_command_in_container(&docker, &id, "builder", "/",vec!["git", "clone", "https://aur.archlinux.org/yay.git", "/home/builder/yay"]).await?;
 
     let inspect = docker.inspect_container(&id, None).await.unwrap();
     let container_ip = inspect
@@ -81,8 +84,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error + 'static>> {
             eprintln!("[-] Sniffer error: {}", e);
         }
     });
-    
+
     println!("[+] Sniffer started.");
+    run_command_in_container(&docker, &id, "builder", "/home/builder/yay/",vec!["makepkg", "-isS"]).await?;
 
     docker
         .remove_container(
@@ -96,6 +100,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error + 'static>> {
         .await?;
 
     println!("[+] Container removed.");
+    sniffer_handler.abort();
+    println!("[+] Sniffer stopped.");
     Ok(())
 }
 
@@ -103,12 +109,16 @@ async fn main() -> Result<(), Box<dyn std::error::Error + 'static>> {
 async fn run_command_in_container(
     docker: &Docker,
     container_id: &str,
+    user: &str,
+    working_dir: &str,
     cmd: Vec<&str>,
 ) -> Result<(), Box<dyn std::error::Error>> {
     let exec_config = CreateExecOptions {
         attach_stdout: Some(true),
         attach_stderr: Some(true),
+        user: Some(user),
         cmd: Some(cmd),
+        working_dir: Some(working_dir),
         ..Default::default()
     };
 
