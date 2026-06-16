@@ -7,16 +7,40 @@ use bollard::container::LogOutput;
 use bollard::exec::{CreateExecOptions, StartExecResults};
 use is_root::is_root;
 
-const IMAGE: &str = "archlinux:latest";
-const PACKAGE: &str = "yay";
+use clap::Parser;
+use std::path::PathBuf;
+
+#[derive(Debug, Parser)]
+#[command(author = "LisZLisowni", version = "0.1.0", about = "A shelter for AUR packages", long_about = None)]
+pub struct Cli {
+    /// Name for AUR package
+    package: String,
+
+    /// Custom docker's interface name
+    #[clap(short, long, default_value = "docker0")]
+    interface: String,
+
+    /// Agresive mode: Instant destroy of container after unknown IP
+    #[arg(short, long, default_value_t = false)]
+    kill_on_alert: bool,
+}
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error + 'static>> {
+    let cli = Cli::parse();
+
+    if cli.package.is_empty() {
+        eprintln!("[!] ERROR: package must not be empty");
+        std::process::exit(1);
+    }
+
     if !is_root() {
         eprintln!("[!] ERROR: You have no permission to operate!");
         eprintln!("    Use command with `sudo`");
         std::process::exit(1);
     }
+
+    const IMAGE: &str = "archlinux:latest";
 
     let docker = Docker::connect_with_local_defaults()?;
     println!("[-] Connected with Docker.");
@@ -60,8 +84,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error + 'static>> {
         .await?;
 
     println!("[+] Container started.");
-    let url = format!("https://aur.archlinux.org/{}.git", PACKAGE);
-    let path = format!("/home/builder/{}", PACKAGE);
+    let url = format!("https://aur.archlinux.org/{}.git", cli.package);
+    let path = format!("/home/builder/{}", cli.package);
 
     run_command_in_container(&docker, &id, "root", "/", vec!["pacman", "-Syu", "--noconfirm"]).await?;
     run_command_in_container(&docker, &id, "root", "/",vec!["pacman", "-S", "--noconfirm", "git", "base-devel"]).await?;
