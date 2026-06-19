@@ -21,7 +21,7 @@ pub struct Cli {
     /// Custom docker's interface name
     #[clap(short, long, default_value = "docker0")]
     interface: String,
-    //
+
     // /// Agresive mode: Instant destroy of container after unknown IP
     // #[arg(short, long, default_value_t = false)]
     // kill_on_alert: bool,

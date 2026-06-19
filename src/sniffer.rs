@@ -10,6 +10,14 @@ struct DnsCache {
 pub fn run_sniffer(container_ip: &str, device_name: &str, allowed_domains: HashSet<String>, kill_tx: tokio::sync::mpsc::Sender<()>) -> Result<(), Box<dyn std::error::Error>> {
     let mut cache = DnsCache { map: HashMap::new() };
 
+    if let Ok(aur_ip) = "209.126.35.78".parse::<Ipv4Addr>() {
+        cache.map.insert(aur_ip, "aur.archlinux.org".to_string());
+    }
+
+    if let Ok(arch_ip) = "95.217.163.50".parse::<Ipv4Addr>() {
+        cache.map.insert(arch_ip, "archlinux.org".to_string());
+    }
+
     println!("[-] Sniffer: Connecting to '{}'...", device_name);
 
     let mut cap = Capture::from_device(device_name)?
@@ -61,9 +69,13 @@ pub fn run_sniffer(container_ip: &str, device_name: &str, allowed_domains: HashS
                                     domain, dest_ip, dest_port
                                 );
 
-                                if dest_port != 53 && !allowed_domains.contains(&domain) {
+                                let is_allowed = allowed_domains.iter().any(|allowed| {
+                                    domain == *allowed || domain.ends_with(&format!(".{}", allowed))
+                                });
+
+                                if dest_port != 53 && !is_allowed {
                                     println!("[!!!] HACK ATTEMPT. Connection with unauthorized domain/IP: {}", domain);
-                                    
+
                                     let _ = kill_tx.send(());
                                 }
                             }
