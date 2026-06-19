@@ -6,9 +6,7 @@ use futures_util::{StreamExt, TryStreamExt};
 use bollard::container::LogOutput;
 use bollard::exec::{CreateExecOptions, StartExecResults};
 use is_root::is_root;
-
 use clap::Parser;
-use std::path::PathBuf;
 
 #[derive(Debug, Parser)]
 #[command(author = "LisZLisowni", version = "0.1.0", about = "A shelter for AUR packages", long_about = None)]
@@ -19,10 +17,10 @@ pub struct Cli {
     /// Custom docker's interface name
     #[clap(short, long, default_value = "docker0")]
     interface: String,
-
-    /// Agresive mode: Instant destroy of container after unknown IP
-    #[arg(short, long, default_value_t = false)]
-    kill_on_alert: bool,
+    //
+    // /// Agresive mode: Instant destroy of container after unknown IP
+    // #[arg(short, long, default_value_t = false)]
+    // kill_on_alert: bool,
 }
 
 #[tokio::main]
@@ -107,7 +105,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error + 'static>> {
     println!("[+] Container ip address: {}", container_ip);
 
     let sniffer_handler = tokio::task::spawn_blocking(move || {
-        if let Err(e) = sniffer::run_sniffer(&container_ip) {
+        if let Err(e) = sniffer::run_sniffer(&container_ip, &cli.interface) {
             eprintln!("[-] Sniffer error: {}", e);
         }
     });

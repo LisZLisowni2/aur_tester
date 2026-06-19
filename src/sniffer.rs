@@ -7,8 +7,7 @@ struct DnsCache {
     map: HashMap<Ipv4Addr, String>,
 }
 
-pub fn run_sniffer(container_ip: &str) -> Result<(), Box<dyn std::error::Error>> {
-    let device_name = "docker0";
+pub fn run_sniffer(container_ip: &str, device_name: &str) -> Result<(), Box<dyn std::error::Error>> {
     let mut cache = DnsCache { map: HashMap::new() };
 
     println!("[-] Sniffer: Connecting to '{}'...", device_name);

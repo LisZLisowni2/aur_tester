@@ -1,1 +1,2 @@
-pub mod sniffer;
+mod sniffer;
+mod aur_api;
