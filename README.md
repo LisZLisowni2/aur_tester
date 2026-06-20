@@ -27,7 +27,9 @@ cargo build --release
 Run the sandbox tester with root privileges (preserving environment variables for Docker socket access):
 Bash
 
+```bash
 sudo -E ./target/release/aur_tester <package-name>
+```
 
 ## Options
 
