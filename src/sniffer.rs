@@ -7,7 +7,7 @@ struct DnsCache {
     map: HashMap<Ipv4Addr, String>,
 }
 
-pub fn run_sniffer(container_ip: &str, device_name: &str, allowed_domains: HashSet<String>, kill_tx: tokio::sync::mpsc::Sender<()>, quiet: &bool) -> Result<(), Box<dyn std::error::Error>> {
+pub fn run_sniffer(container_ip: &str, device_name: &str, allowed_domains: HashSet<String>, kill_tx: tokio::sync::mpsc::Sender<String>, quiet: &bool) -> Result<(), Box<dyn std::error::Error>> {
     let mut cache = DnsCache { map: HashMap::new() };
 
     if let Ok(aur_ip) = "209.126.35.78".parse::<Ipv4Addr>() {
@@ -29,8 +29,14 @@ pub fn run_sniffer(container_ip: &str, device_name: &str, allowed_domains: HashS
     let bpf_filter = format!("host {}", container_ip);
     cap.filter(&bpf_filter, true)?;
     if !quiet { println!("[+] Sniffer: Activated BPF filter: '{}'", bpf_filter); }
+    
+    let mut has_killed = false;
 
     while let Ok(packet) = cap.next_packet() {
+        if has_killed {
+            break;
+        }
+        
         if let Ok(value) = PacketHeaders::from_ethernet_slice(packet.data) {
             if let Some(ip_header) = value.net {
                 if let etherparse::NetHeaders::Ipv4(ipv4, _) = ip_header {
@@ -75,8 +81,9 @@ pub fn run_sniffer(container_ip: &str, device_name: &str, allowed_domains: HashS
 
                                 if dest_port != 53 && !is_allowed {
                                     println!("[!!!] HACK ATTEMPT. Connection with unauthorized domain/IP: {}", domain);
-
-                                    let _ = kill_tx.send(());
+                                    has_killed = true;
+                                    let _ = kill_tx.blocking_send(domain.clone());
+                                    break
                                 }
                             }
                         }

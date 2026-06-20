@@ -1,16 +1,14 @@
 mod sniffer;
 mod aur_api;
-mod pkgbuild;
+mod command;
 
+use std::collections::HashSet;
 use std::process::Command;
 use bollard::models::ContainerCreateBody;
 use bollard::Docker;
 use futures_util::{StreamExt, TryStreamExt};
-use bollard::container::LogOutput;
-use bollard::exec::{CreateExecOptions, StartExecResults};
 use is_root::is_root;
 use clap::Parser;
-use crate::pkgbuild::extract_allowed_domains;
 
 #[derive(Debug, Parser)]
 #[command(author = "LisZLisowni", version = "0.1.0", about = "A shelter for AUR packages", long_about = None)]
@@ -71,14 +69,17 @@ async fn main() -> Result<(), Box<dyn std::error::Error + 'static>> {
     Command::new("git")
         .args(&["clone", &git_url, &tmp_dir])
         .output()?;
+    
+    let mut allowed_domains = HashSet::new();
 
-    let path = format!("{}/PKGBUILD", tmp_dir);
-    let allowed_domains = extract_allowed_domains(&path)?;
-
-    println!("[+] Generating whitelist for domains");
-    for domain in &allowed_domains {
-        println!("  -> Allowed: {}", domain);
-    }
+    allowed_domains.insert("aur.archlinux.org".to_string());
+    allowed_domains.insert("archlinux.org".to_string());
+    allowed_domains.insert("github.com".to_string());
+    allowed_domains.insert("codeload.github.com".to_string());
+    allowed_domains.insert("raw.githubusercontent.com".to_string());
+    allowed_domains.insert("gitlab.com".to_string());
+    allowed_domains.insert("bitbucket.org".to_string());
+    allowed_domains.insert("codeberg.org".to_string());
 
     const IMAGE: &str = "archlinux:latest";
 
@@ -127,11 +128,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error + 'static>> {
     let url = format!("https://aur.archlinux.org/{}.git", cli.package);
     let path = format!("/home/builder/{}", cli.package);
 
-    run_command_in_container(&docker, &id, "root", "/", vec!["pacman", "-Syu", "--noconfirm"]).await?;
-    run_command_in_container(&docker, &id, "root", "/",vec!["pacman", "-S", "--noconfirm", "git", "base-devel"]).await?;
-    run_command_in_container(&docker, &id, "root", "/", vec!["useradd", "-mG", "wheel", "builder"]).await?;
-    run_command_in_container(&docker, &id, "root", "/",vec!["echo \"builder ALL=(ALL:ALL) NOPASSWD: ALL\" >> /etc/sudoers"]).await?;
-    run_command_in_container(&docker, &id, "builder", "/",vec!["git", "clone", &url, &path]).await?;
+    command::run_command_in_container(&docker, &id, "root", "/", vec!["pacman", "-Syu", "--noconfirm"]).await?;
+    command::run_command_in_container(&docker, &id, "root", "/",vec!["pacman", "-S", "--noconfirm", "git", "base-devel"]).await?;
+    command::run_command_in_container(&docker, &id, "root", "/", vec!["useradd", "-mG", "wheel", "builder"]).await?;
+    command::run_command_in_container(&docker, &id, "root", "/",vec!["sh", "-c", "echo 'builder ALL=(ALL:ALL) NOPASSWD: ALL' >> /etc/sudoers"]).await?;
+    command::run_command_in_container(&docker, &id, "builder", "/",vec!["git", "clone", &url, &path]).await?;
 
     let inspect = docker.inspect_container(&id, None).await?;
     let container_ip = inspect
@@ -145,7 +146,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error + 'static>> {
         panic!("[-] Container ip address is empty.");
     }
     println!("[+] Container ip address: {}", container_ip);
-    let (kill_tx, mut kill_rx) = tokio::sync::mpsc::channel::<()>(1);
+    let (kill_tx, mut kill_rx) = tokio::sync::mpsc::channel::<String>(100);
 
     let sniffer_handler = tokio::task::spawn_blocking(move || {
         if let Err(e) = sniffer::run_sniffer(&container_ip, &cli.interface, allowed_domains, kill_tx, &cli.quiet_network_allerts) {
@@ -173,7 +174,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error + 'static>> {
             std::process::exit(1);
         }
 
-        build_result = run_command_in_container(&docker, &id, "builder", &path,vec!["makepkg", "-isS"]) => {
+        build_result = command::run_command_in_container(&docker, &id, "builder", &path,vec!["makepkg", "-is", "--noconfirm"]) => {
             match build_result {
                 Ok(_) => println!("[SUCCESS] Makepkg completed successfully without network violations."),
                 Err(e) => println!("[-] Makepkg exited with error (or was interrupted): {}", e),
@@ -195,40 +196,5 @@ async fn main() -> Result<(), Box<dyn std::error::Error + 'static>> {
     println!("[+] Container removed.");
     sniffer_handler.abort();
     println!("[+] Sniffer stopped.");
-    Ok(())
-}
-
-/// Execute a command inside a running container and stream its output.
-async fn run_command_in_container(
-    docker: &Docker,
-    container_id: &str,
-    user: &str,
-    working_dir: &str,
-    cmd: Vec<&str>,
-) -> Result<(), Box<dyn std::error::Error>> {
-    let exec_config = CreateExecOptions {
-        attach_stdout: Some(true),
-        attach_stderr: Some(true),
-        user: Some(user),
-        cmd: Some(cmd),
-        working_dir: Some(working_dir),
-        ..Default::default()
-    };
-
-    let exec = docker.create_exec(container_id, exec_config).await?;
-
-    // start_exec now returns StartExecResults which is an enum over Attached / Detached
-    if let StartExecResults::Attached { mut output, .. } =
-        docker.start_exec(&exec.id, None).await?
-    {
-        while let Some(msg) = output.next().await {
-            match msg? {
-                LogOutput::StdOut { message } => print!("{}", String::from_utf8_lossy(&message)),
-                LogOutput::StdErr { message } => eprint!("{}", String::from_utf8_lossy(&message)),
-                _ => {}
-            }
-        }
-    }
-
     Ok(())
 }
