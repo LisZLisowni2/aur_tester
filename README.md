@@ -33,7 +33,7 @@ sudo -E ./target/release/aur_tester <package-name>
 ## Options
 
 ```
-Usage: aur-sandbox-tester [OPTIONS] <PACKAGE>
+Usage: aur_tester [OPTIONS] <PACKAGE>
 
 Arguments:
   <PACKAGE>  The name of the AUR package to test (e.g., yay, paru)
