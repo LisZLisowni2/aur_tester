@@ -1,4 +1,4 @@
-# AUR Tester 🛡️
+# AUR Tester
 
 `aur_tester` is a secure, reactive isolation environment and dynamic network intrusion prevention system (IPS) designed for safely compiling and testing Arch Linux (AUR) packages. 
 
@@ -9,8 +9,7 @@ It automatically clones a specified package, parses its `PKGBUILD` to dynamicall
 - **Dynamic Whitelisting**: Parses `PKGBUILD` sources in real-time to allow legitimate package downloads while blocking hidden telemetry or malware.
 - **DNS-Parser Level Inspection**: Resolves raw IPv4 TCP connections back to their domain names by capturing port 53 UDP packets on the Docker bridge (`docker0`).
 - **Asynchronous Kill Switch**: Instantly kills and destroys the container mid-build via `tokio::select!` the millisecond a network anomaly occurs.
-- **Artifact Extraction**: Safely downloads the verified `.pkg.tar.zst` artifact back to your host upon a successful, clean build.
-
+  
 ## Prerequisites
 - **Arch Linux** host (or any system running Docker with an Arch build toolchain available).
 - **Docker** daemon running and configured.
