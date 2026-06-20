@@ -49,7 +49,7 @@ mod integration_tests {
 
     #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
     async fn test_sniffer_detects_unauthorized_domain() {
-        const IMAGE: &str = "archlinux:latest";
+        const IMAGE: &str = "liszlisowni/test-archlinux:latest";
         
         let mut allowed_domains = HashSet::new();
 
@@ -90,10 +90,6 @@ prepare() {
         );
 
         let id = create_test_image(&docker, IMAGE).await.unwrap();
-        command::run_command_in_container(&docker, &id, "root", "/", vec!["pacman", "-Syu", "--noconfirm"]).await.unwrap();
-        command::run_command_in_container(&docker, &id, "root", "/", vec!["pacman", "-S", "--noconfirm", "git", "base-devel"]).await.unwrap();
-        command::run_command_in_container(&docker, &id, "root", "/", vec!["useradd", "-mG", "wheel", "builder"]).await.unwrap();
-        command::run_command_in_container(&docker, &id, "root", "/",vec!["sh", "-c", "echo 'builder ALL=(ALL:ALL) NOPASSWD: ALL' >> /etc/sudoers"]).await.unwrap();
         command::run_command_in_container(&docker, &id, "builder", "/home/builder",vec!["mkdir", "aur_fake"]).await.unwrap();
         command::run_command_in_container(&docker, &id, "builder", "/home/builder/aur_fake",vec!["sh", "-c", &cat_content]).await.unwrap();
 

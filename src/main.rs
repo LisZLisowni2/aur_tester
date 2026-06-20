@@ -81,7 +81,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error + 'static>> {
     allowed_domains.insert("bitbucket.org".to_string());
     allowed_domains.insert("codeberg.org".to_string());
 
-    const IMAGE: &str = "archlinux:latest";
+    const IMAGE: &str = "liszlisowni/test-archlinux:latest";
 
     let docker = Docker::connect_with_local_defaults()?;
     println!("[-] Connected with Docker.");
@@ -128,10 +128,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error + 'static>> {
     let url = format!("https://aur.archlinux.org/{}.git", cli.package);
     let path = format!("/home/builder/{}", cli.package);
 
-    command::run_command_in_container(&docker, &id, "root", "/", vec!["pacman", "-Syu", "--noconfirm"]).await?;
-    command::run_command_in_container(&docker, &id, "root", "/",vec!["pacman", "-S", "--noconfirm", "git", "base-devel"]).await?;
-    command::run_command_in_container(&docker, &id, "root", "/", vec!["useradd", "-mG", "wheel", "builder"]).await?;
-    command::run_command_in_container(&docker, &id, "root", "/",vec!["sh", "-c", "echo 'builder ALL=(ALL:ALL) NOPASSWD: ALL' >> /etc/sudoers"]).await?;
     command::run_command_in_container(&docker, &id, "builder", "/",vec!["git", "clone", &url, &path]).await?;
 
     let inspect = docker.inspect_container(&id, None).await?;
