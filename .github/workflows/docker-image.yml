@@ -25,7 +25,7 @@ jobs:
       id: meta
       uses: docker/metadata-action@v5
       with:
-        images: ${{ secrets.DOCKERHUB_USERNAME }}/my-app-name
+        images: ${{ secrets.DOCKERHUB_USERNAME }}/test-archlinux
         tags: |
           type=raw,value=latest
           type=sha,value={{sha}}
