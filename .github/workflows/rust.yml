@@ -38,11 +38,10 @@ jobs:
         sudo apt update -y
         sudo apt install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
         sudo apt install -y libpcap-dev
-    - name: Build
-      run: cargo build --verbose
+        
     - name: Build tests
       run: cargo test --no-run
     - name: Run tests with sudo
       run: |
         # Find the compiled test binary and run it with sudo
-        sudo $(find target/debug/deps -maxdepth 1 -type f -executable ! -name "*.so") --verbose
+        sudo $(find target/debug/deps -maxdepth 1 -type f -executable ! -name "*.so")
