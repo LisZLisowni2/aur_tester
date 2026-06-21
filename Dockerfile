@@ -1,4 +1,4 @@
-FROM archlinux:latest
+FROM archlinux:base-20260614.0.544538
 
 RUN pacman -Syu --noconfirm && \
     pacman -S --noconfirm git base-devel && \
