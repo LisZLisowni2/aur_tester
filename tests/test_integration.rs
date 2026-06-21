@@ -65,7 +65,7 @@ mod integration_tests {
         allowed_domains.insert("bitbucket.org".to_string());
         allowed_domains.insert("codeberg.org".to_string());
 
-        let (signal_tx, mut signal_rx) = mpsc::channel::<String>(100);
+        let (signal_tx, mut signal_rx) = mpsc::unbounded_channel();
 
         let interface = "docker0";
 

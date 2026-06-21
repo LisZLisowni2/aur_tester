@@ -10,7 +10,7 @@ struct DnsCache {
     map: HashMap<Ipv4Addr, String>,
 }
 
-pub fn run_sniffer(container_ip: &str, device_name: &str, allowed_domains: HashSet<String>, quiet: &bool, signal_tx: tokio::sync::mpsc::Sender<String>, stop_flag: Arc<AtomicBool>) -> Result<(), Box<dyn std::error::Error>> {
+pub fn run_sniffer(container_ip: &str, device_name: &str, allowed_domains: HashSet<String>, quiet: &bool, signal_tx: tokio::sync::mpsc::UnboundedSender<String>, stop_flag: Arc<AtomicBool>) -> Result<(), Box<dyn std::error::Error>> {
     let mut cache = DnsCache { map: HashMap::new() };
 
     if let Ok(aur_ip) = "209.126.35.78".parse::<Ipv4Addr>() {
@@ -27,8 +27,9 @@ pub fn run_sniffer(container_ip: &str, device_name: &str, allowed_domains: HashS
         .promisc(true)
         .snaplen(65535)
         .immediate_mode(true)
-        .timeout(100)
-        .open()?;
+        .timeout(1000)
+        .open()?
+        .setnonblock()?;
 
     let bpf_filter = format!("host {}", container_ip);
     cap.filter(&bpf_filter, true)?;
@@ -86,7 +87,7 @@ pub fn run_sniffer(container_ip: &str, device_name: &str, allowed_domains: HashS
 
                                         if dest_port != 53 && !is_allowed {
                                             if !quiet { println!("[!!!] Suspicious activity. Connection with unauthorized domain/IP: {}", domain) };
-                                            signal_tx.blocking_send(domain.to_string())?;
+                                            signal_tx.send(domain.to_string())?;
                                         }
                                     }
                                 }

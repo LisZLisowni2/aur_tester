@@ -145,7 +145,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error + 'static>> {
         panic!("[-] Container ip address is empty.");
     }
     println!("[+] Container ip address: {}", container_ip);
-    let (signal_tx, mut signal_rx) = tokio::sync::mpsc::channel::<String>(100);
+    let (signal_tx, mut signal_rx) = tokio::sync::mpsc::unbounded_channel();
 
     let stop_flag = Arc::new(AtomicBool::new(false));
     let stop_flag_clone = stop_flag.clone();
@@ -167,19 +167,25 @@ async fn main() -> Result<(), Box<dyn std::error::Error + 'static>> {
     );
     tokio::pin!(build_fut);
 
+    let mut active_signal_rx = Some(signal_rx);
+
     let build_result = loop {
         tokio::select! {
-            message = signal_rx.recv() => {
+            message = async {
+            if let Some(ref mut rx) = active_signal_rx {
+                    rx.recv().await
+                } else {
+                    std::future::pending().await // Hangs this branch forever if channel is dead
+                }
+            } => {
                 match message {
                     Some(domain) => {
                         if !cli.quiet_network_allerts { println!("[-] Signal received") };
                         suspicious_domains.insert(domain);
                     }
                     None => {
-                        // channel closed, stop listening for signals but keep building
-                        // (optional: just `continue` won't work here since recv() would
-                        // immediately resolve again; consider a no-op future like
-                        // futures::future::pending() in that case if needed)
+                        active_signal_rx = None;
+                        if !cli.quiet_network_allerts { println!("[-] Sniffer channel closed, continuing build...") };
                     }
                 }
             }
@@ -211,7 +217,12 @@ async fn main() -> Result<(), Box<dyn std::error::Error + 'static>> {
     sniffer_handler.await?;
     println!("[+] Sniffer stopped.");
 
-    println!("[-] Suspicious domains:");
+    print!("{}[2J", 27 as char);
+    println!("=================================");
+    println!("===== FINAL SECURITY RAPORT =====");
+    println!("=================================");
+
+    println!("- Suspicious domains:");
     for domain in suspicious_domains {
         println!("  -> {}", domain);
     }
