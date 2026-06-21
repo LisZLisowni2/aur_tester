@@ -6,13 +6,12 @@ It automatically clones a specified package, parses its `PKGBUILD` to dynamicall
 
 ## Features
 - **Automated Root Validation**: Safely asserts required permissions before initiating raw network socket operations.
-- **Dynamic Whitelisting**: Parses `PKGBUILD` sources in real-time to allow legitimate package downloads while blocking hidden telemetry or malware.
 - **DNS-Parser Level Inspection**: Resolves raw IPv4 TCP connections back to their domain names by capturing port 53 UDP packets on the Docker bridge (`docker0`).
-- **Asynchronous Kill Switch**: Instantly kills and destroys the container mid-build via `tokio::select!` the millisecond a network anomaly occurs.
   
 ## Prerequisites
 - **Arch Linux** host (or any system running Docker with an Arch build toolchain available).
 - **Docker** daemon running and configured.
+- **libcap** package installed (`sudo pacman -S libcap`)
 - **Root Privileges** (required for `libpcap` packet capturing on the `docker0` network interface).
 - **Git** installed on the host.
 
@@ -24,8 +23,7 @@ Clone the repository and build the binary:
 cargo build --release
 ```
 
-Run the sandbox tester with root privileges (preserving environment variables for Docker socket access):
-Bash
+Run the sandbox tester with root privileges:
 
 ```bash
 sudo ./target/release/aur_tester <package-name>
@@ -44,7 +42,3 @@ Options:
   -h, --help                   Print help
   -V, --version                Print version
 ```
-
-## Architecture Diagram
-
-The orchestrator provisions an isolated container, while an asynchronous task sniffs the network bridge. If an unauthorized payload attempts an outbound HTTP connection to a non-declared domain, the mpsc channel triggers an emergency container destruction.
